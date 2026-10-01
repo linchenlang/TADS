@@ -2132,7 +2132,10 @@
     void el.offsetWidth;
     el.classList.add('in');
     const action = sceneActions[el.id];
-    if (action) { await raf2(); action(); }
+    // 关键修复：不再等 raf2，同步执行 action，
+    // 让内部元素在场景被浏览器绘制之前就重置到动画起始状态，
+    // 避免出现"先闪一下完整内容再消失"的现象。
+    if (action) action();
     if (isLast) return;
     let remain = ENTER + scene.hold;
     while (remain > 0) {
