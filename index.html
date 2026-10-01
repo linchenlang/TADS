@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TADS · 列车数据与查询服务系统</title>
+<meta name="description" content="TADS 列车数据与查询服务系统 —— 为每一次列车查询打造的一站式平台，覆盖服务器端、桌面客户端与 Web 端。">
+<link rel="icon" href="image/logo.ico">
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f8fafc;
+    --bg-mute: #f1f5f9;
+    --bg-dark: #0f172a;
+    --text: #0f172a;
+    --text-mid: #475569;
+    --text-dim: #94a3b8;
+    --border: #e2e8f0;
+    --border-soft: #f1f5f9;
+    --brand: #2563eb;
+    --brand-dark: #1d4ed8;
+    --brand-soft: #eff6ff;
+    --accent: #ff375f;
+    --accent-soft: #fff1f4;
+    --green: #10b981;
+    --radius: 14px;
+    --radius-lg: 20px;
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.04);
+    --shadow-lg: 0 30px 60px rgba(15, 23, 42, 0.12), 0 10px 24px rgba(15, 23, 42, 0.06);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI",
+            "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  .wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  /* ============ 导航 ============ */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .nav.scrolled {
+    border-bottom-color: var(--border);
+    box-shadow: 0 1px 20px rgba(15, 23, 42, 0.04);
+  }
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 68px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 2px;
+  }
+  .brand img {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+  }
+  .brand .sub {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    font-weight: 500;
+    margin-left: 2px;
+    padding-left: 12px;
+    border-left: 1px solid var(--border);
+    display: none;
+  }
+  @media (min-width: 720px) { .brand .sub { display: block; } }
+
+  .nav-links {
+    display: none;
+    align-items: center;
+    gap: 6px;
+  }
+  @media (min-width: 900px) { .nav-links { display: flex; } }
+  .nav-links a {
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-mid);
+    border-radius: 8px;
+    transition: color 0.2s, background 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); background: var(--bg-mute); }
+
+  .nav-cta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .btn-primary {
+    background: var(--text);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #1e293b; transform: translateY(-1px); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .btn-ghost:hover { background: var(--bg-mute); border-color: #cbd5e1; }
+  .btn-brand {
+    background: var(--brand);
+    color: #fff;
+  }
+  .btn-brand:hover { background: var(--brand-dark); transform: translateY(-1px); }
+  .btn-lg { padding: 13px 26px; font-size: 15px; border-radius: 12px; }
+
+  /* ============ Hero ============ */
+  .hero {
+    position: relative;
+    padding: 96px 0 80px;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 800px 400px at 15% 0%, rgba(37, 99, 235, 0.08), transparent 60%),
+      radial-gradient(ellipse 700px 400px at 85% 100%, rgba(255, 55, 95, 0.06), transparent 60%),
+      var(--bg);
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(15, 23, 42, 0.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 23, 42, 0.028) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 40%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 40%, transparent 100%);
+    pointer-events: none;
+  }
+  .hero-inner {
+    position: relative;
+    text-align: center;
+    max-width: 880px;
+    margin: 0 auto;
+  }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--brand-soft);
+    color: var(--brand);
+    border-radius: 100px;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 28px;
+    border: 1px solid rgba(37, 99, 235, 0.15);
+  }
+  .tag .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--brand);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+  }
+  .hero h1 {
+    font-size: clamp(38px, 6.5vw, 68px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    margin-bottom: 24px;
+  }
+  .hero h1 .accent {
+    background: linear-gradient(120deg, #2563eb 0%, #7c3aed 50%, #ff375f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  .hero p {
+    font-size: clamp(15px, 1.3vw, 18px);
+    color: var(--text-mid);
+    max-width: 640px;
+    margin: 0 auto 40px;
+    line-height: 1.7;
+  }
+  .hero-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* ============ 统计 ============ */
+  .stats {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-soft);
+    padding: 40px 0;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+  @media (min-width: 768px) {
+    .stats-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+  .stat {
+    text-align: center;
+  }
+  .stat .num {
+    font-size: clamp(28px, 3.5vw, 40px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    line-height: 1.1;
+    margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .num .unit {
+    font-size: 0.55em;
+    font-weight: 700;
+    color: var(--text-dim);
+    margin-left: 2px;
+  }
+  .stat .label {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 500;
+    letter-spacing: 1px;
+  }
+
+  /* ============ 通用区块 ============ */
+  section { padding: 96px 0; }
+  section.dark {
+    background: var(--bg-dark);
+    color: #e2e8f0;
+  }
+  section.dark .section-title { color: #f8fafc; }
+  section.dark .section-desc { color: #94a3b8; }
+
+  .section-head {
+    text-align: center;
+    max-width: 700px;
+    margin: 0 auto 64px;
+  }
+  .section-eyebrow {
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--brand);
+    margin-bottom: 16px;
+  }
+  section.dark .section-eyebrow { color: #60a5fa; }
+  .section-title {
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 18px;
+  }
+  .section-desc {
+    font-size: 16px;
+    color: var(--text-mid);
+    line-height: 1.7;
+  }
+
+  /* ============ 功能网格 ============ */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  @media (min-width: 640px)  { .feature-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1024px) { .feature-grid { grid-template-columns: repeat(3, 1fr); } }
+
+  .feature {
+    padding: 28px 26px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .feature::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--brand), var(--accent));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .feature:hover {
+    border-color: #cbd5e1;
+    box-shadow: var(--shadow-md);
+    transform: translateY(-3px);
+  }
+  .feature:hover::after { transform: scaleX(1); }
+
+  .feature-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 11px;
+    background: var(--brand-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+  .feature-icon svg { width: 22px; height: 22px; stroke: var(--brand); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .feature:nth-child(3n+2) .feature-icon { background: var(--accent-soft); }
+  .feature:nth-child(3n+2) .feature-icon svg { stroke: var(--accent); }
+  .feature:nth-child(3n+3) .feature-icon { background: #ecfdf5; }
+  .feature:nth-child(3n+3) .feature-icon svg { stroke: var(--green); }
+
+  .feature h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: -0.005em;
+  }
+  .feature p {
+    font-size: 13.5px;
+    color: var(--text-mid);
+    line-height: 1.65;
+  }
+
+  /* ============ 平台卡片 ============ */
+  .platform-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  @media (min-width: 900px) { .platform-grid { grid-template-columns: repeat(3, 1fr); } }
+
+  .platform {
+    padding: 36px 32px;
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .platform:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-4px);
+  }
+  .platform-tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 2.5px;
+    font-weight: 700;
+    color: #60a5fa;
+    margin-bottom: 18px;
+    padding: 4px 10px;
+    background: rgba(96, 165, 250, 0.1);
+    border-radius: 6px;
+  }
+  .platform:nth-child(2) .platform-tag { color: #a78bfa; background: rgba(167, 139, 250, 0.1); }
+  .platform:nth-child(3) .platform-tag { color: #f472b6; background: rgba(244, 114, 182, 0.1); }
+
+  .platform h3 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: #f8fafc;
+    letter-spacing: -0.015em;
+  }
+  .platform p {
+    font-size: 14px;
+    color: #94a3b8;
+    line-height: 1.75;
+    margin-bottom: 24px;
+  }
+  .platform-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .platform-list li {
+    font-size: 13px;
+    color: #cbd5e1;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.5;
+  }
+  .platform-list li::before {
+    content: "";
+    flex-shrink: 0;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #60a5fa;
+    margin-top: 8px;
+  }
+  .platform:nth-child(2) .platform-list li::before { background: #a78bfa; }
+  .platform:nth-child(3) .platform-list li::before { background: #f472b6; }
+
+  /* ============ 宣传片 ============ */
+  .video-section {
+    background: var(--bg-soft);
+  }
+  .video-card {
+    position: relative;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  .video-card:hover { transform: scale(1.008); }
+  .video-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 30% 30%, rgba(37, 99, 235, 0.35), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 70% 70%, rgba(255, 55, 95, 0.25), transparent 70%);
+    pointer-events: none;
+  }
+  .video-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    opacity: 0.6;
+  }
+  .video-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    color: #fff;
+  }
+  .video-play {
+    width: 78px;
+    height: 78px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .video-play svg {
+    width: 26px;
+    height: 26px;
+    fill: #fff;
+    margin-left: 4px;
+  }
+  .video-card:hover .video-play {
+    background: rgba(255, 255, 255, 0.22);
+    transform: scale(1.08);
+  }
+  .video-content h3 {
+    font-size: clamp(20px, 2.4vw, 30px);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 10px;
+  }
+  .video-content p {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.6);
+    letter-spacing: 0.5px;
+  }
+
+  /* ============ 更新日志 ============ */
+  .changelog {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .log-item {
+    display: flex;
+    gap: 24px;
+    padding: 22px 24px;
+    border-radius: var(--radius);
+    transition: background 0.2s;
+  }
+  .log-item:hover { background: var(--bg-soft); }
+  .log-ver {
+    flex-shrink: 0;
+    width: 96px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--brand);
+    padding-top: 2px;
+  }
+  .log-body h4 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .log-body p {
+    font-size: 13.5px;
+    color: var(--text-mid);
+    line-height: 1.7;
+  }
+  .log-date {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-left: 8px;
+    font-weight: 500;
+  }
+
+  /* ============ 技术条 ============ */
+  .tech-strip {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px;
+    align-items: center;
+  }
+  @media (min-width: 900px) {
+    .tech-strip { grid-template-columns: 1.1fr 1fr; gap: 64px; }
+  }
+  .tech-list {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .tech-item {
+    display: flex;
+    gap: 18px;
+  }
+  .tech-num {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-dim);
+    padding-top: 3px;
+    letter-spacing: 1px;
+  }
+  .tech-body h4 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .tech-body p {
+    font-size: 13.5px;
+    color: var(--text-mid);
+    line-height: 1.7;
+  }
+  .tech-visual {
+    padding: 36px;
+    background: var(--bg-soft);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+  }
+  .tech-visual h5 {
+    font-size: 12px;
+    letter-spacing: 2.5px;
+    color: var(--text-dim);
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+  }
+  .chip-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .chip-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .chip-label {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    width: 84px;
+    flex-shrink: 0;
+  }
+  .chip-bar {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .chip-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--brand), var(--accent));
+    transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    width: 0;
+  }
+  .chip-tag {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    width: 72px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ============ CTA ============ */
+  .cta-section {
+    background: var(--bg-dark);
+    padding: 96px 0;
+    text-align: center;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-section::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 60% at 50% 40%, rgba(37, 99, 235, 0.18), transparent 70%);
+    pointer-events: none;
+  }
+  .cta-inner {
+    position: relative;
+    max-width: 660px;
+    margin: 0 auto;
+  }
+  .cta-section h2 {
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    margin-bottom: 20px;
+    line-height: 1.15;
+  }
+  .cta-section p {
+    color: #94a3b8;
+    font-size: 16px;
+    margin-bottom: 40px;
+    line-height: 1.7;
+  }
+  .cta-section .btn-primary { background: #fff; color: var(--text); }
+  .cta-section .btn-primary:hover { background: #f1f5f9; }
+  .cta-section .btn-ghost { border-color: rgba(255, 255, 255, 0.2); color: #fff; }
+  .cta-section .btn-ghost:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.35); }
+
+  /* ============ 页脚 ============ */
+  .footer {
+    padding: 64px 0 40px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-soft);
+  }
+  .footer-top {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  @media (min-width: 768px) {
+    .footer-top { grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr; gap: 40px; }
+  }
+  .footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: 2px;
+  }
+  .footer-brand img { width: 32px; height: 32px; object-fit: contain; }
+  .footer-desc {
+    font-size: 13.5px;
+    color: var(--text-mid);
+    line-height: 1.75;
+    max-width: 320px;
+  }
+  .footer-col h5 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text);
+    letter-spacing: 0.5px;
+  }
+  .footer-col ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .footer-col a {
+    font-size: 13.5px;
+    color: var(--text-mid);
+    transition: color 0.2s;
+  }
+  .footer-col a:hover { color: var(--brand); }
+
+  .footer-source {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-mute);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 12.5px;
+    color: var(--text-mid);
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .footer-source .label {
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+  .footer-source a {
+    color: var(--brand);
+    font-weight: 600;
+    font-family: var(--font-mono);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
+  }
+  .footer-source a:hover {
+    border-bottom-color: var(--brand);
+  }
+
+  .footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+
+  /* ============ 视频 Modal ============ */
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .modal.open {
+    display: flex;
+    opacity: 1;
+  }
+  .modal-inner {
+    position: relative;
+    width: 100%;
+    max-width: 1400px;
+    aspect-ratio: 16 / 9;
+    max-height: 90vh;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
+    background: #000;
+    transform: scale(0.96);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .modal.open .modal-inner { transform: scale(1); }
+  .modal-inner iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+  .modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 20px;
+    font-weight: 300;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: background 0.2s;
+    font-family: inherit;
+    line-height: 1;
+  }
+  .modal-close:hover { background: rgba(255, 255, 255, 0.22); }
+
+  /* ============ 滚动入场 ============ */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ============ 移动端微调 ============ */
+  @media (max-width: 640px) {
+    .wrap { padding: 0 20px; }
+    section { padding: 72px 0; }
+    .hero { padding: 64px 0 56px; }
+    .hero-actions { flex-direction: column; }
+    .hero-actions .btn { justify-content: center; width: 100%; }
+    .log-item { flex-direction: column; gap: 8px; }
+    .log-ver { width: auto; }
+    .tech-visual { padding: 24px; }
+    .chip-label { width: 68px; font-size: 12px; }
+    .chip-tag { display: none; }
+    .footer-source { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ 导航 ============ -->
+<nav class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a href="#" class="brand">
+      <img src="image/logo.ico" alt="TADS" onerror="this.style.display='none'">
+      TADS
+      <span class="sub">列车数据与查询服务</span>
+    </a>
+    <div class="nav-links">
+      <a href="#features">功能</a>
+      <a href="#platforms">平台</a>
+      <a href="#video">宣传片</a>
+      <a href="#changelog">更新</a>
+      <a href="#tech">技术</a>
+      <a href="#about">关于</a>
+    </div>
+    <div class="nav-cta">
+      <a href="#video" class="btn btn-primary">看懂 TADS</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ Hero ============ -->
+<header class="hero">
+  <div class="wrap hero-inner">
+    <div class="tag">
+      <span class="dot"></span>
+      v26.9.9 · 全新升级
+    </div>
+    <h1>
+      列车查询，<br>
+      <span class="accent">重新设计。</span>
+    </h1>
+    <p>
+      TADS（Train Data & Query Service）列车数据与查询服务系统
+      —— 为每一次列车查询打造的一站式平台，覆盖服务器端、桌面客户端与 Web 端。
+    </p>
+    <div class="hero-actions">
+      <a href="#video" class="btn btn-brand btn-lg"> 宣传片 </a>
+      <a href="#features" class="btn btn-ghost btn-lg">了解功能</a>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 数据 ============ -->
+<section class="stats">
+  <div class="wrap">
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="num">3000<span class="unit">+</span></div>
+        <div class="label">覆盖车站</div>
+      </div>
+      <div class="stat">
+        <div class="num">10000<span class="unit">+</span></div>
+        <div class="label">每日车次</div>
+      </div>
+      <div class="stat">
+        <div class="num">4<span class="unit">级</span></div>
+        <div class="label">权限体系</div>
+      </div>
+      <div class="stat">
+        <div class="num">3<span class="unit">端</span></div>
+        <div class="label">全平台覆盖</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 核心功能 ============ -->
+<section id="features">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="section-eyebrow">FEATURES</div>
+      <h2 class="section-title">为每一次查询而生</h2>
+      <p class="section-desc">
+        从车次到车站，从实时位置到检票口信息，TADS 覆盖列车数据查询的每一个细节。
+      </p>
+    </div>
+
+    <div class="feature-grid">
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <h3>实时正晚点</h3>
+        <p>调用实时接口获取列车正晚点状态，标注预计正点、预计晚点，实时掌握列车动态。</p>
+      </div>
+
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="18" x2="8" y2="21"/><line x1="16" y1="18" x2="16" y2="21"/></svg>
+        </div>
+        <h3>车站大屏</h3>
+        <p>实时获取出发 / 到达大屏数据，展示车次、图定时间、大屏状态、检票口与出站口信息。</p>
+      </div>
+
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+        </div>
+        <h3>车次完整详情</h3>
+        <p>车次类型、复车次、路局、车型、配属、担当、运行时长，以及全部经停站信息。</p>
+      </div>
+
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <h3>车次实时位置</h3>
+        <p>基于实际时刻表与实时正晚点数据，精确定位列车当前位置，线路图与时刻表同步聚焦。</p>
+      </div>
+
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+        </div>
+        <h3>两站间查询</h3>
+        <p>输入起点与终点，一次检索获取两地间所有车次、发车到达时间、历时与运行状态。</p>
+      </div>
+
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <h3>站点时刻表</h3>
+        <p>按时间排序显示经过该站的所有车次，自动计算上一班与下一班，含昨日 / 次日标记。</p>
+      </div>
+
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        </div>
+        <h3>车厢图与动车组</h3>
+        <p>查看列车车厢分布图，双击放大细节；查询动车组运行信息与车组配属详情。</p>
+      </div>
+
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>物理密钥认证</h3>
+        <p>基于 PN532 读卡器的 NFC 认证体系，管理员 M1 卡与 ROOT NTAG215 卡双重校验。</p>
+      </div>
+
+      <div class="feature reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+        </div>
+        <h3>离线模式</h3>
+        <p>本地查询引擎贯穿每一次查询，断网状态下核心功能仍可正常使用，无需等待。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 三端平台 ============ -->
+<section id="platforms" class="dark">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="section-eyebrow">PLATFORMS</div>
+      <h2 class="section-title">三端覆盖，处处一致</h2>
+      <p class="section-desc">
+        服务器端负责数据集中管理与 API 服务，桌面客户端提供完整的查询与编辑能力，Web 端打开浏览器即可使用。
+      </p>
+    </div>
+
+    <div class="platform-grid">
+      <div class="platform reveal">
+        <div class="platform-tag">SERVER</div>
+        <h3>服务器端</h3>
+        <p>
+          数据集中管理与对外 API 服务的核心，负责列车数据的存储、更新、合并组计算与权限校验。
+        </p>
+        <ul class="platform-list">
+          <li>列车数据增删改查与持久化</li>
+          <li>内置 Flask API 服务与 V1/V2 接口代理</li>
+          <li>还原点系统与操作日志</li>
+          <li>物理密钥与权限体系管理</li>
+        </ul>
+      </div>
+
+      <div class="platform reveal">
+        <div class="platform-tag">CLIENT</div>
+        <h3>桌面客户端</h3>
+        <p>
+          提供完整的数据查询、编辑与提权能力，与服务器端功能完全对齐，适合需要深入使用系统的用户。
+        </p>
+        <ul class="platform-list">
+          <li>九种查询模式覆盖全部场景</li>
+          <li>数据源独立切换（本地 / API）</li>
+          <li>编辑、还原点、日志完整支持</li>
+          <li>与服务器端安全机制完全一致</li>
+        </ul>
+      </div>
+
+      <div class="platform reveal">
+        <div class="platform-tag">WEB</div>
+        <h3>TADS-Web</h3>
+        <p>
+          轻量版本，打开浏览器即可使用，无需安装任何软件，随时随地查询列车信息。
+        </p>
+        <ul class="platform-list">
+          <li>车次查询：经停站、正晚点、检票口</li>
+          <li>车站查询：上一班与下一班</li>
+          <li>站到站查询：两地间所有车次</li>
+          <li>车站大屏：出发与到达实时同步</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 宣传片 ============ -->
+<section id="video" class="video-section">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="section-eyebrow">SHOWCASE</div>
+      <h2 class="section-title">用 3 分钟，看懂 TADS</h2>
+      <p class="section-desc">
+        从离线适配到三端覆盖，一支短片带你快速了解这次升级的全部亮点。
+      </p>
+    </div>
+
+    <div class="video-card reveal" id="videoCard">
+      <div class="video-content">
+        <div class="video-play">
+          <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+        <h3>TADS v26.9.9 升级宣传片</h3>
+        <p>点击播放 · 约 3 分钟</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 更新日志 ============ -->
+<section id="changelog">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="section-eyebrow">CHANGELOG</div>
+      <h2 class="section-title">最近更新</h2>
+      <p class="section-desc">记录每一次改进，让系统持续进化。</p>
+    </div>
+
+    <div class="changelog">
+      <div class="log-item reveal">
+        <div class="log-ver">v26.9.9</div>
+        <div class="log-body">
+          <h4>离线适配与多端对齐<span class="log-date">2026-09-19</span></h4>
+          <p>
+            新增离线模式全面支持，断网状态下核心功能正常可用；客户端数据源独立控制，多客户端并发互不干扰；
+            车组详情滚动修复、车次实时位置自动聚焦、车站大屏支持双击进详情。
+          </p>
+        </div>
+      </div>
+
+      <div class="log-item reveal">
+        <div class="log-ver">v26.8.x</div>
+        <div class="log-body">
+          <h4>车次实时位置与线路图<span class="log-date">2026-08</span></h4>
+          <p>
+            引入基于实际时刻表的列车定位算法，配合线路图与状态卡片，一眼看清列车当前所在区间。
+          </p>
+        </div>
+      </div>
+
+      <div class="log-item reveal">
+        <div class="log-ver">v26.7.x</div>
+        <div class="log-body">
+          <h4>物理密钥与权限体系<span class="log-date">2026-07</span></h4>
+          <p>
+            完整实现 PN532 NFC 读卡器驱动，支持 M1 卡与 NTAG215 卡认证；四级权限体系上线，各司其职。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 技术 ============ -->
+<section id="tech" style="background: var(--bg-soft);">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="section-eyebrow">TECHNOLOGY</div>
+      <h2 class="section-title">为兼容性而设计</h2>
+      <p class="section-desc">
+        从最新 CPU 到二十年前的老机器，TADS 都能稳定运行。
+      </p>
+    </div>
+
+    <div class="tech-strip">
+      <div class="tech-list reveal">
+        <div class="tech-item">
+          <div class="tech-num">01</div>
+          <div class="tech-body">
+            <h4>指令集自动适配</h4>
+            <p>启动时自动检测 CPU 支持的指令集，从 AVX-512 到 SSE2、MMX，逐级回退，确保任何机器都能跑起来。</p>
+          </div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-num">02</div>
+          <div class="tech-body">
+            <h4>物理密钥 + Ed25519 签名</h4>
+            <p>ROOT 身份需通过 NTAG215 卡与 Hash256 双重验证，安全等级远超传统密码方案。</p>
+          </div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-num">03</div>
+          <div class="tech-body">
+            <h4>数据持久化与原子写入</h4>
+            <p>JSON 格式存储，采用临时文件 + 原子替换 + 文件锁机制，断电或崩溃也不会损坏数据。</p>
+          </div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-num">04</div>
+          <div class="tech-body">
+            <h4>还原点与操作日志</h4>
+            <p>最多三个还原点，随时回滚；全部操作留痕，支持导出 CSV / JSON / TXT 三种格式。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tech-visual reveal">
+        <h5>CPU Feature Support</h5>
+        <div class="chip-list" id="chipList">
+          <div class="chip-row">
+            <span class="chip-label">AVX-512</span>
+            <div class="chip-bar"><div class="chip-fill" data-width="100%"></div></div>
+            <span class="chip-tag">HIGH</span>
+          </div>
+          <div class="chip-row">
+            <span class="chip-label">AVX2</span>
+            <div class="chip-bar"><div class="chip-fill" data-width="90%"></div></div>
+            <span class="chip-tag">HIGH</span>
+          </div>
+          <div class="chip-row">
+            <span class="chip-label">AVX</span>
+            <div class="chip-bar"><div class="chip-fill" data-width="78%"></div></div>
+            <span class="chip-tag">STD</span>
+          </div>
+          <div class="chip-row">
+            <span class="chip-label">SSE4.2</span>
+            <div class="chip-bar"><div class="chip-fill" data-width="64%"></div></div>
+            <span class="chip-tag">EXT</span>
+          </div>
+          <div class="chip-row">
+            <span class="chip-label">SSE3</span>
+            <div class="chip-bar"><div class="chip-fill" data-width="50%"></div></div>
+            <span class="chip-tag">LEGACY</span>
+          </div>
+          <div class="chip-row">
+            <span class="chip-label">SSE2</span>
+            <div class="chip-bar"><div class="chip-fill" data-width="38%"></div></div>
+            <span class="chip-tag">LEGACY</span>
+          </div>
+          <div class="chip-row">
+            <span class="chip-label">MMX</span>
+            <div class="chip-bar"><div class="chip-fill" data-width="24%"></div></div>
+            <span class="chip-tag">CLASSIC</span>
+          </div>
+          <div class="chip-row">
+            <span class="chip-label">x86</span>
+            <div class="chip-bar"><div class="chip-fill" data-width="14%"></div></div>
+            <span class="chip-tag">BASE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 关于 / CTA ============ -->
+<section id="about" class="cta-section">
+  <div class="wrap cta-inner reveal">
+    <h2>想了解更多，或与我们合作？</h2>
+    <p>
+      TADS 由 QS Studio 独立开发，持续迭代。无论是功能建议、数据合作，还是技术交流，都欢迎随时联系。
+    </p>
+    <div class="hero-actions">
+      <a href="mailto:linchenlang@outlook.com" class="btn btn-primary btn-lg">联系我们</a>
+      <a href="https://linchenlang.github.io/TADS-Web/" target="_blank" rel="noopener" class="btn btn-ghost btn-lg">体验 TADS-Web</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 页脚 ============ -->
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-top">
+      <div>
+        <div class="footer-brand">
+          <img src="image/logo.ico" alt="TADS" onerror="this.style.display='none'">
+          TADS
+        </div>
+        <p class="footer-desc">
+          列车数据与查询服务系统<br>
+          Train Data & Query Service
+        </p>
+      </div>
+
+      <div class="footer-col">
+        <h5>产品</h5>
+        <ul>
+          <li><a href="#features">核心功能</a></li>
+          <li><a href="#platforms">三端平台</a></li>
+          <li><a href="#video">宣传片</a></li>
+          <li><a href="#changelog">更新日志</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h5>相关链接</h5>
+        <ul>
+          <li><a href="https://linchenlang.github.io/TADS-Web/" target="_blank" rel="noopener">TADS-Web 在线版</a></li>
+          <li><a href="https://api.railgo.dev" target="_blank" rel="noopener">RailGo API</a></li>
+          <li><a href="https://github.com/linchenlang/TADS-Server" target="_blank" rel="noopener">TADS GitHub 官方网站 </a></li>
+          <li><a href="https://kyfw.12306.cn" target="_blank" rel="noopener">中国铁路 12306</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h5>支持</h5>
+        <ul>
+          <li><a href="#tech">技术说明</a></li>
+          <li><a href="#about">关于我们</a></li>
+          <li><a href="mailto:linchenlang@outlook.com">问题反馈</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h5>联系</h5>
+        <ul>
+          <li><a href="mailto:linchenlang@outlook.com">linchenlang@outlook.com</a></li>
+          <li><a href="https://github.com/linchenlang" target="_blank" rel="noopener">GitHub</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 数据源标注 -->
+    <div class="footer-source">
+      <span class="label">数据源</span>
+      <span>本产品数据源为 RailGo</span>
+      <a href="https://api.railgo.dev" target="_blank" rel="noopener">api.railgo.dev</a>
+    </div>
+
+    <div class="footer-bottom">
+      <div>© 2026 QS Studio · Michael (linchenlang)</div>
+      <div>v26.9.9 · Built with care</div>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ 视频 Modal ============ -->
+<div class="modal" id="videoModal">
+  <div class="modal-inner">
+    <button class="modal-close" id="modalClose" aria-label="关闭">×</button>
+    <iframe id="videoFrame" title="TADS 宣传片" allowfullscreen></iframe>
+  </div>
+</div>
+
+<script>
+  // ============ 导航滚动阴影 ============
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    const y = window.scrollY;
+    if (y > 10) nav.classList.add('scrolled');
+    else nav.classList.remove('scrolled');
+  }, { passive: true });
+
+  // ============ 滚动入场 ============
+  const revealEls = document.querySelectorAll('.reveal');
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  revealEls.forEach(el => revealObserver.observe(el));
+
+  // ============ 技术进度条动画 ============
+  const chipFills = document.querySelectorAll('.chip-fill');
+  const chipObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        chipFills.forEach((fill, i) => {
+          setTimeout(() => {
+            fill.style.width = fill.dataset.width;
+          }, i * 90);
+        });
+        chipObserver.disconnect();
+      }
+    });
+  }, { threshold: 0.4 });
+  const chipList = document.getElementById('chipList');
+  if (chipList) chipObserver.observe(chipList);
+
+  // ============ 视频 Modal ============
+  const videoModal = document.getElementById('videoModal');
+  const videoFrame = document.getElementById('videoFrame');
+  const videoCard = document.getElementById('videoCard');
+  const modalClose = document.getElementById('modalClose');
+
+  function openVideo() {
+    videoFrame.src = 'xuanchuanpian.html';
+    videoModal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeVideo() {
+    videoModal.classList.remove('open');
+    document.body.style.overflow = '';
+    setTimeout(() => { videoFrame.src = ''; }, 300);
+  }
+
+  if (videoCard) videoCard.addEventListener('click', openVideo);
+  if (modalClose) modalClose.addEventListener('click', closeVideo);
+  if (videoModal) {
+    videoModal.addEventListener('click', (e) => {
+      if (e.target === videoModal) closeVideo();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && videoModal.classList.contains('open')) closeVideo();
+  });
+
+  // ============ 平滑锚点跳转 ============
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      const id = a.getAttribute('href');
+      if (id === '#') return;
+      const target = document.querySelector(id);
+      if (!target) return;
+      e.preventDefault();
+      const top = target.getBoundingClientRect().top + window.scrollY - 80;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+</script>
+
+</body>
+</html>
